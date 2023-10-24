@@ -20,7 +20,7 @@ import itertools
 from tqdm import tqdm
 from torchvision.utils import make_grid
 
-if 'enter_the_photo_image2nerf' in __file__:
+if 'zeronvs/zeronvs_diffusion' in __file__:
     THREESTUDIO = True
 
     def rank_zero_only(x):
