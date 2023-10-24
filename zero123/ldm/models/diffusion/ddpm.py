@@ -22,6 +22,7 @@ from torchvision.utils import make_grid
 
 if 'zeronvs/zeronvs_diffusion' in __file__:
     THREESTUDIO = True
+    print("SDS distillation only, disabling some functionality...")
 
     def rank_zero_only(x):
         return x
