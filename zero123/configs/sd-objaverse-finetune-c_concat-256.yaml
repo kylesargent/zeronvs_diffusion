@@ -1,0 +1,194 @@
+model:
+  base_learning_rate: 1.0e-04
+  target: ldm.models.diffusion.ddpm.LatentDiffusion
+  params:
+    linear_start: 0.00085
+    linear_end: 0.0120
+    num_timesteps_cond: 1
+    log_every_t: 200
+    timesteps: 1000
+    first_stage_key: "image_target"
+    cond_stage_key: "image_cond"
+    image_size: 32
+    channels: 4
+    cond_stage_trainable: false   # Note: different from the one we trained before
+    conditioning_key: hybrid
+    monitor: val/loss_simple_ema
+    scale_factor: 0.18215
+
+    conditioning_config:
+      params:
+        mode: "3dof"
+        embedding_dim: 4
+        depth_model_name: "midas"
+        quantile_scale_blend: True
+
+    scheduler_config: # 10000 warmup steps
+      target: ldm.lr_scheduler.LambdaLinearScheduler
+      params:
+        warm_up_steps: [ 100 ]
+        cycle_lengths: [ 10000000000000 ] # incredibly large number to prevent corner cases
+        f_start: [ 1.e-6 ]
+        f_max: [ 1. ]
+        f_min: [ 1. ]
+
+    unet_config:
+      target: ldm.modules.diffusionmodules.openaimodel.UNetModel
+      params:
+        image_size: 32 # unused
+        in_channels: 8
+        out_channels: 4
+        model_channels: 320
+        attention_resolutions: [ 4, 2, 1 ]
+        num_res_blocks: 2
+        channel_mult: [ 1, 2, 4, 4 ]
+        num_heads: 8
+        use_spatial_transformer: True
+        transformer_depth: 1
+        context_dim: 768
+        use_checkpoint: True
+        legacy: False
+        
+    eval_config:
+        params:
+            scale: 3.0
+            ddim_steps: 50
+            ddim_eta: 1.0
+            lpips_model_path: null
+
+    first_stage_config:
+      target: ldm.models.autoencoder.AutoencoderKL
+      params:
+        embed_dim: 4
+        monitor: val/rec_loss
+        ddconfig:
+          double_z: true
+          z_channels: 4
+          resolution: 256
+          in_channels: 3
+          out_ch: 3
+          ch: 128
+          ch_mult:
+          - 1
+          - 2
+          - 4
+          - 4
+          num_res_blocks: 2
+          attn_resolutions: []
+          dropout: 0.0
+        lossconfig:
+          target: torch.nn.Identity
+
+    cond_stage_config:
+      target: ldm.modules.encoders.modules.FrozenCLIPImageEmbedder
+
+# co3d
+data:
+  target: ldm.data.simple.WDSGenericDataModule
+  params:
+    train_config:
+      batch_size: 192
+      num_workers: 6
+      shuffle_buffer_size: 500
+      prefetch_factor: 4
+
+      # scene counts:
+      # acid: 12032
+      # co3d: 18432
+      # realestate10k: 65280
+
+      dataset_config_1:
+        dataset_n_shards: 127
+        dataset_name: "co3d"
+        views_per_scene: 100
+        dataset_n_scenes: 18432
+        rate: .025
+        probability: .34
+        compute_nearplane_quantile: False
+        dataset_url: null
+      dataset_config_2:
+        dataset_n_shards: 127
+        dataset_name: "re10k"
+        views_per_scene: 200
+        dataset_n_scenes: 65280
+        probability: .33
+        rate: .025
+        compute_nearplane_quantile: False
+        dataset_url: null
+      dataset_config_3:
+        dataset_n_shards: 127
+        dataset_name: "acid"
+        views_per_scene: 200
+        dataset_n_scenes: 12032
+        probability: .33
+        rate: .025
+        compute_nearplane_quantile: False
+        dataset_url: null
+
+    
+    
+    val_config:
+      batch_size: 16
+      subsample: 1.
+      # 1.385 = 1.8/1.3 for RTMV
+      # .789=1.8/2.281 for DTU
+      # .479=1.8/3.757
+      num_workers: 0
+      shuffle_buffer_size: null
+      prefetch_factor: 4
+      scene_scale: 1.0  
+
+      # dataset_n_scenes
+      # co3d: 159
+      # re10k: 510
+      # acid: 94
+
+      dataset_config_1:
+        dataset_n_shards: 1
+        dataset_name: "co3d"
+        views_per_scene: 100
+        dataset_n_scenes: 159  # ~100 views per scene
+        rate: .1
+        probability: 1.0
+        compute_nearplane_quantile: False
+        dataset_url: null
+
+
+
+lightning:
+  just_eval_this_ckpt: null
+  no_monitor: True
+  find_unused_parameters: false
+  # metrics_over_trainsteps_checkpoint: True
+  modelcheckpoint:
+    params:
+      every_n_train_steps: 5000
+      save_last: False
+      save_top_k: -1
+  callbacks:
+    image_logger:
+      target: main.ImageLogger
+      params:
+        batch_frequency: 500
+        max_images: 32
+        increase_log_steps: False
+        log_first_step: False
+        log_images_kwargs:
+          use_ema_scope: False
+          inpaint: False
+          plot_progressive_rows: False
+          plot_diffusion_rows: False
+          N: 32
+          unconditional_guidance_scale: 3.0
+          unconditional_guidance_label: [""]
+    # metrics_over_trainsteps_checkpoint:
+    #   target: pytorch_lightning.callbacks.ModelCheckpoint
+    #   params:
+    #     every_n_train_steps: 10000
+
+
+  trainer:
+    benchmark: True
+    val_check_interval: 10000 # really sorry
+    num_sanity_val_steps: 0
+    accumulate_grad_batches: 1  # note: need to scale down batch size accordingly if setting this option
