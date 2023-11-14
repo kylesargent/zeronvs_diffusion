@@ -20,7 +20,7 @@ import itertools
 from tqdm import tqdm
 from torchvision.utils import make_grid
 
-if 'zeronvs/zeronvs_diffusion' in __file__:
+if 'ZeroNVS/zeronvs_diffusion' in __file__:
     THREESTUDIO = True
     print("SDS distillation only, disabling some functionality...")
 
