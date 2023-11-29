@@ -19,25 +19,17 @@ from functools import partial
 import itertools
 from tqdm import tqdm
 from torchvision.utils import make_grid
+from ldm.models.diffusion import options
 
-if 'ZeroNVS/zeronvs_diffusion' in __file__:
-    THREESTUDIO = True
+
+if options.LDM_DISTILLATION_ONLY:
     print("SDS distillation only, disabling some functionality...")
 
     def rank_zero_only(x):
         return x
-
-    import sys
-    from os.path import dirname
-
-    dir_to_add = dirname(dirname(dirname(dirname(__file__))))
-    print(dir_to_add)
-    sys.path.insert(0, dir_to_add)
-
     def maybe_nograd():
         return lambda x: x
 else:
-    THREESTUDIO = False
     import lpips
     from pytorch_lightning.utilities.distributed import rank_zero_only
 
