@@ -2,7 +2,7 @@
 torch==1.12.1
 torchvision==0.13.1
 albumentations==0.4.3
-opencv-python==4.5.5.64
+opencv-python==4.8.0.76
 pudb==2019.2
 imageio==2.9.0
 imageio-ffmpeg==0.4.2
@@ -27,4 +27,5 @@ lovely-tensors>=0.1.14
 plotly==5.13.1
 google-cloud-storage==2.10.0
 lpips
+pyspng
 timm==0.6.7
